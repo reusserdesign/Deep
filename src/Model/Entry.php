@@ -483,7 +483,7 @@ class Entry extends AbstractEntity
      */
     public function getEditDateAttribute($value)
     {
-        return $this->attributes['edit_date'] ? Carbon::createFromFormat('YmdHis', $this->attributes['edit_date']) : null;
+        return $this->attributes['edit_date'] ? Carbon::createFromFormat('U', $this->attributes['edit_date']) : null;
     }
 
     /**
