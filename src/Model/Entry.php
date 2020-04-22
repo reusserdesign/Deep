@@ -181,6 +181,8 @@ class Entry extends AbstractEntity
         'comment_total' => 'Comment Total',
     ];
 
+    private $scopedChannelIds = [];
+
     /**
      * The class used when creating a new Collection
      * @var string
@@ -592,17 +594,9 @@ class Entry extends AbstractEntity
         }
 
         $query = $this->castToDeepBuilder($query);
+        $query->setFieldsByChannelId(static::getFieldRepository()->getFieldsForAllChannels());
 
         $query->join('channel_data', 'channel_titles.entry_id', '=', 'channel_data.entry_id');
-
-        // join all the channel_data_field_X tables
-        foreach (static::getFieldRepository()->getFields() as $field) {
-            if ($field->legacy_field_data !== 'y') {
-                $table = "channel_data_field_{$field->field_id}";
-
-                $query->leftJoin($table, 'channel_titles.entry_id', '=', "{$table}.entry_id");
-            }
-        }
 
         return $query;
     }
@@ -908,6 +902,10 @@ class Entry extends AbstractEntity
     public function scopeChannelId(Builder $query, $channelId)
     {
         $channelIds = is_array($channelId) ? $channelId : array_slice(func_get_args(), 1);
+
+        $this->scopedChannelIds = array_merge($this->scopedChannelIds, $channelIds);
+
+        $query->setScopedChannelIds($this->scopedChannelIds);
 
         return $query->whereIn('channel_titles.channel_id', $channelIds);
     }

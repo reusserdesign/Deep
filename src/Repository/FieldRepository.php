@@ -97,6 +97,11 @@ class FieldRepository extends AbstractFieldRepository implements ChannelFieldRep
         }
     }
 
+    public function getFieldsForAllChannels() {
+        $this->loadCollection();
+        return $this->fieldsByChannel;
+    }
+
     /**
      * Get a Collection of fields from the specified group
      *

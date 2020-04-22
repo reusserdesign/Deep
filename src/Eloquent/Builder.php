@@ -4,6 +4,7 @@ namespace rsanchez\Deep\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder as BaseBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use rsanchez\Deep\Collection\FieldCollection;
 
 class Builder extends BaseBuilder
 {
@@ -23,7 +24,16 @@ class Builder extends BaseBuilder
      * Which fields to hydrate
      * @var bool
      */
+    protected $fieldsByChannelId = false;
+
+    /**
+     * Which fields to hydrate
+     * @var bool
+     */
     protected $withFields = [];
+
+    protected $scopedChannelIds = [];
+    private $hasAppliedFields = false;
 
     public function __construct(QueryBuilder $query, BaseBuilder $builder)
     {
@@ -45,6 +55,35 @@ class Builder extends BaseBuilder
     }
 
     /**
+     * Get a Collection of fields from the specified group
+     *
+     * @param  int                                       $channelId
+     * @return \rsanchez\Deep\Collection\FieldCollection
+     */
+    private function applyQueryFields() {
+
+        if ($this->hasAppliedFields) return;
+        $this->hasAppliedFields = true;
+
+        $fieldCollection = collect([]);
+        if (!empty($this->scopedChannelIds)) {
+            foreach($this->scopedChannelIds as $channelId) {
+                if (isset($this->fieldsByChannelId[$channelId])) {
+                    $fieldCollection = $fieldCollection->concat($this->fieldsByChannelId[$channelId])->unique();
+                }
+            }
+        }
+
+        // join all the channel_data_field_X tables
+        foreach ($fieldCollection as $field) {
+            if ($field->legacy_field_data !== 'y') {
+                $table = "channel_data_field_{$field->field_id}";
+                $this->leftJoin($table, 'channel_titles.entry_id', '=', "{$table}.entry_id");
+            }
+        }
+    }
+
+    /**
      * Execute the query as a "select" statement.
      *
      * @param  array  $columns
@@ -53,6 +92,8 @@ class Builder extends BaseBuilder
     public function get($columns = ['*'])
     {
         $builder = method_exists($this, 'applyScopes') ? $this->applyScopes() : $this;
+
+        $builder->applyQueryFields();
 
         $models = $builder->getModels($columns);
 
@@ -114,5 +155,13 @@ class Builder extends BaseBuilder
     public function isChildHydrationEnabled()
     {
         return $this->childHydrationEnabled;
+    }
+
+    public function setFieldsByChannelId($fieldsByChannelId) {
+        $this->fieldsByChannelId = $fieldsByChannelId;
+    }
+
+    public function setScopedChannelIds($scopedChannelIds) {
+        $this->scopedChannelIds = $scopedChannelIds;
     }
 }
